@@ -1,0 +1,6 @@
+{
+	"port": 5000,
+	"jwtSecret": "mykola poberezhnyi ocean store",
+	"mongoUri": "mongodb+srv://mykola:123456789qwerty@cluster0-rjw6x.azure.mongodb.net/test?retryWrites=true&w=majority",
+	"baseUrl": "http://localhost:5000"
+}

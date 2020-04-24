@@ -6,6 +6,8 @@ const {check, validationResult} = require('express-validator')
 const User = require('../models/User')
 const router = Router()
 
+let refreshTokens = [];
+
 router.post(
 	'/register',
 	[
@@ -14,8 +16,6 @@ router.post(
 			.isLength({ min: 6 })
 	],
 	async (req, res) => {
-
-		console.log(req.body)
 
 		try {
 			const errors = validationResult(req)
@@ -40,8 +40,6 @@ router.post(
 			const user = new User({email, password: hashedPassword})
 			
 			await user.save()
-
-			console.log('====')
 
 			res.status(201).json({message: 'User created'})
 
@@ -84,17 +82,93 @@ router.post(
 			}
 
 			const token = jwt.sign(
-				{ userId: user.id, userEmail: user.email },
+				{ userId: user.id, email: user.email },
 				config.get('jwtSecret'),
 				{ expiresIn: '1h' }
 			)
 
-			res.json({token, userId: user.id, email: user.email})
+			const refreshToken = jwt.sign(
+				{ userId: user.id, email: user.email },
+				config.get('refreshTokenSecret')
+			)
+
+			refreshTokens.push(refreshToken);
+
+			res.json({
+				userId: user.id,
+				email: user.email,
+				token,
+				refreshToken
+			});
 
 		} catch (e) {
 			res.status(500).json({message: 'Something wrong, try again...'})
 		}
 	}
 )
+
+const authenticateJWT = (req, res, next) => {
+	const authHeader = req.headers.authorization;
+
+	if (authHeader) {
+		const token = authHeader.split(' ')[1];
+
+		jwt.verify(token, config.get('jwtSecret'), (err, user) => {
+			if (err) {
+				return res.status(403).json({message: 'Error users token'});
+			}
+			req.user = user;
+			next();
+		});
+	} else {
+		res.status(401).json({message: 'error... else==='});
+	}
+};
+
+router.get('/profile', authenticateJWT, async (req, res) => {
+	res.status(201).json({message: 'fine... is user'});
+})
+
+router.post('/token', async (req, res) => {
+	try {
+		const { token } = req.body;
+
+		if (!token) {
+			return res.status(401);
+		}
+
+		if (!refreshTokens.includes(token)) {
+			return res.status(403);
+		}
+
+		jwt.verify(token, config.get('refreshTokenSecret'), (err, user) => {
+			if (err) {
+				return res.status(403);
+			}
+
+			const token = jwt.sign(
+				{ userId: user.id, email: user.email },
+				config.get('jwtSecret'),
+				{ expiresIn: '20m' });
+
+			res.json({
+				userId: user.id,
+				email: user.email,
+				token
+			});
+		});
+	}
+	catch (e) {
+		res.status(403).json({message: "Token error"})
+	}
+
+});
+
+router.post('/logout', (req, res) => {
+	const { token } = req.body;
+	refreshTokens = refreshTokens.filter(t => t !== token);
+
+	res.send({message: "Logout successful"});
+});
 
 module.exports = router

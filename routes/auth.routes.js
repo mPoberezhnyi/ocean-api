@@ -84,7 +84,7 @@ router.post(
 			const token = jwt.sign(
 				{ userId: user.id, email: user.email },
 				config.get('jwtSecret'),
-				{ expiresIn: '1h' }
+				{ expiresIn: '2m' }
 			)
 
 			const refreshToken = jwt.sign(
@@ -115,18 +115,18 @@ const authenticateJWT = (req, res, next) => {
 
 		jwt.verify(token, config.get('jwtSecret'), (err, user) => {
 			if (err) {
-				return res.status(403).json({message: 'Error users token'});
+				return res.status(201).json({isUser: false});
 			}
 			req.user = user;
 			next();
 		});
 	} else {
-		res.status(401).json({message: 'error... else==='});
+		res.status(401).json({message: 'Wrong data'});
 	}
 };
 
-router.get('/profile', authenticateJWT, async (req, res) => {
-	res.status(201).json({message: 'fine... is user'});
+router.get('/profile', authenticateJWT, (req, res) => {
+	res.status(201).json({isUser: true});
 })
 
 router.post('/token', async (req, res) => {
@@ -149,11 +149,9 @@ router.post('/token', async (req, res) => {
 			const token = jwt.sign(
 				{ userId: user.id, email: user.email },
 				config.get('jwtSecret'),
-				{ expiresIn: '20m' });
+				{ expiresIn: '2m' });
 
 			res.json({
-				userId: user.id,
-				email: user.email,
 				token
 			});
 		});

@@ -84,7 +84,7 @@ router.post(
 			const token = jwt.sign(
 				{ userId: user.id, email: user.email },
 				config.get('jwtSecret'),
-				{ expiresIn: '2m' }
+				{ expiresIn: '1h' }
 			)
 
 			const refreshToken = jwt.sign(
@@ -149,7 +149,7 @@ router.post('/token', async (req, res) => {
 			const token = jwt.sign(
 				{ userId: user.id, email: user.email },
 				config.get('jwtSecret'),
-				{ expiresIn: '2m' });
+				{ expiresIn: '1h' });
 
 			res.json({
 				token

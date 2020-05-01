@@ -2,6 +2,7 @@ const {Router} = require('express')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const config = require('config')
+const authenticateJWT = require('../middlewares/jwt_auth')
 const {check, validationResult} = require('express-validator')
 const User = require('../models/User')
 const router = Router()
@@ -27,7 +28,7 @@ router.post(
 				})
 			}
 
-			const { email, password } = req.body
+			const { name, email, password } = req.body
 
 			const candidate = await User.findOne({ email })
 
@@ -37,11 +38,11 @@ router.post(
 
 			const hashedPassword = await bcrypt.hash(password, 12)
 
-			const user = new User({email, password: hashedPassword})
+			const user = new User({name, email, password: hashedPassword})
 			
 			await user.save()
 
-			res.status(201).json({message: 'User created'})
+			res.status(201).json({message: 'User created', email})
 
 		} catch (e) {
 			res.status(500).json({message: 'Something wrong, try again...'})
@@ -82,19 +83,20 @@ router.post(
 			}
 
 			const token = jwt.sign(
-				{ userId: user.id, email: user.email },
+				{ name: user.name, userId: user.id, email: user.email },
 				config.get('jwtSecret'),
 				{ expiresIn: '1h' }
 			)
 
 			const refreshToken = jwt.sign(
-				{ userId: user.id, email: user.email },
+				{ name: user.name, userId: user.id, email: user.email },
 				config.get('refreshTokenSecret')
 			)
 
 			refreshTokens.push(refreshToken);
 
 			res.json({
+				name: user.name,
 				userId: user.id,
 				email: user.email,
 				token,
@@ -107,26 +109,26 @@ router.post(
 	}
 )
 
-const authenticateJWT = (req, res, next) => {
-	const authHeader = req.headers.authorization;
-
-	if (authHeader) {
-		const token = authHeader.split(' ')[1];
-
-		jwt.verify(token, config.get('jwtSecret'), (err, user) => {
-			if (err) {
-				return res.status(201).json({isUser: false});
-			}
-			req.user = user;
-			next();
-		});
-	} else {
-		res.status(401).json({message: 'Wrong data'});
-	}
-};
-
 router.get('/profile', authenticateJWT, (req, res) => {
 	res.status(201).json({isUser: true});
+})
+
+router.get('/userinfo', authenticateJWT, async (req, res) => {
+
+	try {
+		const { user } = req
+
+		if (user) {
+			return res.status(201).json({
+				name: user.name,
+				userId: user.id,
+				email: user.email,
+			})
+		}
+	}
+	catch (e) {
+		res.status(401).json({message: 'Error user info'});
+	}
 })
 
 router.post('/token', async (req, res) => {
@@ -147,7 +149,7 @@ router.post('/token', async (req, res) => {
 			}
 
 			const token = jwt.sign(
-				{ userId: user.id, email: user.email },
+				{ userId: user.id, email: user.email, name: user.name },
 				config.get('jwtSecret'),
 				{ expiresIn: '1h' });
 

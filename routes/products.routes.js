@@ -1,7 +1,9 @@
 const {Router} = require('express')
 const {Types} = require('mongoose')
 const {check} = require('express-validator')
+const authenticateJWT = require('../middlewares/jwt_auth')
 const Product = require('../models/Product')
+const User = require('../models/User')
 const router = Router()
 
 router.post(
@@ -80,6 +82,107 @@ router.get(
 			res.status(500).json({message: 'Something wrong, try again...'})
 		}
 
+	}
+)
+
+router.post(
+	'/favorites',
+	authenticateJWT,
+	async (req, res) => {
+		try {
+
+			const { userId } = req.user
+			const productId = req.body.id
+			const userObjectId = new Types.ObjectId(userId)
+
+			const user = await User.findOne({ _id: userObjectId})
+
+			if (!user) {
+				return res.status(401).json({message: 'User not found'})
+			}
+
+			if (!user.favorites.includes(productId)) {
+				await User.updateOne(
+					{ _id: userObjectId },
+					{ favorites: [...user.favorites, new Types.ObjectId(productId)] }
+				);
+			}
+
+			const { favorites } = await User.findOne({ _id: new Types.ObjectId(userId)})
+
+			const products = await Product.find({_id: favorites.map(item => new Types.ObjectId(item))})
+
+			return res.status(201).json([...products])
+
+		}
+		catch (e) {
+			res.status(500).json({message: 'Something wrong, try again...'})
+		}
+	}
+)
+
+router.get(
+	'/favorites',
+	authenticateJWT,
+	async (req, res) => {
+		try {
+
+			const { userId } = req.user
+
+			const { favorites } = await User.findOne({ _id: new Types.ObjectId(userId)})
+
+			const products = await Product.find({_id: favorites.map(item => new Types.ObjectId(item))})
+
+			return res.status(201).json([...products])
+		}
+		catch (e) {
+			res.status(500).json({message: 'Something wrong, try again...'})
+		}
+	}
+)
+
+router.patch(
+	'/favorites',
+	authenticateJWT,
+	async (req, res) => {
+		try {
+
+			const { userId } = req.user
+			const productId = req.body.id
+			const userObjectId = new Types.ObjectId(userId)
+
+			const user = await User.findOne({ _id: userObjectId})
+
+			if (!user) {
+				return res.status(401).json({message: 'User not found'})
+			}
+
+			const index = user.favorites.findIndex(item => item == productId)
+
+			if (index !== -1) {
+				await User.updateOne(
+					{
+						_id: userObjectId
+					},
+					{
+						favorites: [
+						...user.favorites.slice(0, index),
+						...user.favorites.slice(index+1)
+						]
+					}
+				);
+			}
+
+			const { favorites } = await User.findOne({ _id: new Types.ObjectId(userId)})
+
+			const products = await Product.find({_id: favorites.map(item => new Types.ObjectId(item))})
+
+			return res.status(201).json([...products])
+
+		}
+		catch (e) {
+			res.status(500).json({message: 'Something wrong, try again...'})
+		}
 	}
 )
 

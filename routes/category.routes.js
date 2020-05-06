@@ -46,7 +46,6 @@ router.get(
 		catch (e) {
 			res.status(500).json({message: 'Something wrong, try again...'})
 		}
-
 	}
 )
 
